@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Environment
+.env
+*.env.local
+*.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+*.log
+
+# macOS
+.DS_Store
+
+# Flutter (Phase 2)
+**/flutter/.dart_tool/
+**/flutter/build/
+**/flutter/.flutter-plugins
+**/flutter/.flutter-plugins-dependencies
+**/flutter/pubspec.lock
+
+# AWS credentials — NEVER commit
+*.pem
+credentials
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Alembic — keep versions but not __pycache__
+alembic/versions/__pycache__/

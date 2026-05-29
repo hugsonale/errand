@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Errand Marketplace — Admin Panel</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #F9FAFB; color: #111827; }
+    :root {
+      --primary: #1A3C6E; --secondary: #10B981; --warning: #F59E0B;
+      --error: #EF4444; --border: #E5E7EB; --surface: #F9FAFB;
+      --card: #FFFFFF; --text: #111827; --muted: #6B7280;
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:8000/api/v1';
+
+// ── API Client ────────────────────────────────────────────────────────────────
+const api = {
+  token: localStorage.getItem('admin_token'),
+
+  async req(method, path, body) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+    return res.json();
+  },
+
+  get: (path) => api.req('GET', path),
+  post: (path, body) => api.req('POST', path, body),
+  patch: (path, body) => api.req('PATCH', path, body),
+};
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const S = {
+  layout: { display:'flex', minHeight:'100vh' },
+  sidebar: { width:220, background:'var(--primary)', color:'#fff', padding:'24px 0', flexShrink:0 },
+  sidebarTitle: { padding:'0 20px 24px', fontSize:16, fontWeight:700, borderBottom:'1px solid rgba(255,255,255,0.1)' },
+  navItem: (active) => ({
+    display:'block', padding:'12px 20px', color: active ? '#fff' : 'rgba(255,255,255,0.65)',
+    background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
+    cursor:'pointer', fontSize:14, fontWeight: active ? 600 : 400,
+    borderLeft: active ? '3px solid #10B981' : '3px solid transparent',
+  }),
+  main: { flex:1, padding:32, overflow:'auto' },
+  pageTitle: { fontSize:22, fontWeight:700, marginBottom:4 },
+  pageSubtitle: { fontSize:14, color:'var(--muted)', marginBottom:24 },
+  card: { background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:20, marginBottom:16 },
+  grid: { display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16, marginBottom:24 },
+  stat: { background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:20 },
+  statVal: { fontSize:28, fontWeight:700, color:'var(--primary)' },
+  statLabel: { fontSize:12, color:'var(--muted)', marginTop:4 },
+  badge: (color) => ({
+    display:'inline-block', padding:'3px 10px', borderRadius:20,
+    fontSize:11, fontWeight:600,
+    background: `${color}18`, color: color,
+  }),
+  btn: (color='var(--primary)', outline=false) => ({
+    padding:'8px 16px', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:600,
+    border: `1px solid ${color}`,
+    background: outline ? 'transparent' : color,
+    color: outline ? color : '#fff',
+    marginRight:8,
+  }),
+  table: { width:'100%', borderCollapse:'collapse' },
+  th: { padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:600, color:'var(--muted)', borderBottom:'1px solid var(--border)', textTransform:'uppercase', letterSpacing:'0.05em' },
+  td: { padding:'12px 14px', fontSize:13, borderBottom:'1px solid var(--border)', verticalAlign:'middle' },
+  input: { padding:'10px 14px', borderRadius:8, border:'1px solid var(--border)', fontSize:14, width:'100%', marginBottom:12, outline:'none' },
+  modal: { position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 },
+  modalBox: { background:'#fff', borderRadius:16, padding:32, width:480, maxHeight:'80vh', overflow:'auto' },
+};
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+function LoginPage({ onLogin }) {
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const data = await api.post('/auth/login', { identifier, password });
+      api.token = data.access_token;
+      localStorage.setItem('admin_token', data.access_token);
+      onLogin();
+    } catch (e) {
+      setError('Invalid credentials or not an admin account');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--surface)' }}>
+      <div style={{ background:'#fff', padding:40, borderRadius:16, width:400, border:'1px solid var(--border)', boxShadow:'0 4px 24px rgba(0,0,0,0.08)' }}>
+        <div style={{ fontSize:24, fontWeight:800, color:'var(--primary)', marginBottom:6 }}>Admin Panel</div>
+        <div style={{ fontSize:14, color:'var(--muted)', marginBottom:28 }}>Errand Marketplace</div>
+        <form onSubmit={submit}>
+          <input style={S.input} type="text" placeholder="Email or phone" value={identifier} onChange={e => setIdentifier(e.target.value)} required />
+          <input style={S.input} type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+          {error && <div style={{ color:'var(--error)', fontSize:13, marginBottom:12 }}>{error}</div>}
+          <button style={{ ...S.btn(), width:'100%', padding:14, fontSize:15 }} type="submit" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard Stats ───────────────────────────────────────────────────────────
+function DashboardPage() {
+  const stats = [
+    { label: 'Pending verifications', value: '—', color: '#F59E0B', key: 'pending_kyc' },
+    { label: 'Active tasks', value: '—', color: '#10B981', key: 'active_tasks' },
+    { label: 'Open disputes', value: '—', color: '#EF4444', key: 'open_disputes' },
+    { label: 'Total users', value: '—', color: '#1A3C6E', key: 'total_users' },
+  ];
+
+  return (
+    <div>
+      <div style={S.pageTitle}>Dashboard</div>
+      <div style={S.pageSubtitle}>Platform overview</div>
+      <div style={S.grid}>
+        {stats.map(s => (
+          <div key={s.key} style={S.stat}>
+            <div style={{ ...S.statVal, color: s.color }}>{s.value}</div>
+            <div style={S.statLabel}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={S.card}>
+        <div style={{ fontWeight:600, marginBottom:12 }}>Quick actions</div>
+        <button style={S.btn()} onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'verifications' }))}>
+          Review KYC submissions
+        </button>
+        <button style={S.btn('#EF4444')} onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'disputes' }))}>
+          Handle disputes
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Verifications ─────────────────────────────────────────────────────────────
+function VerificationsPage() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get('/agents/admin/verifications');
+      setItems(data);
+    } catch (e) {
+      setMsg('Failed to load verifications');
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const review = async (id, action) => {
+    if (action === 'reject' && !rejectionReason.trim()) {
+      setMsg('Please provide a rejection reason');
+      return;
+    }
+    setProcessing(true);
+    try {
+      await api.post(`/agents/admin/verifications/${id}/review`, {
+        action,
+        rejection_reason: action === 'reject' ? rejectionReason : null,
+      });
+      setSelected(null);
+      setRejectionReason('');
+      setMsg(`Agent ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+      load();
+    } catch (e) {
+      setMsg('Action failed: ' + e.message);
+    } finally { setProcessing(false); }
+  };
+
+  const statusColor = (s) => ({ pending:'#F59E0B', resubmitted:'#3B82F6', approved:'#10B981', rejected:'#EF4444' }[s] || '#6B7280');
+
+  return (
+    <div>
+      <div style={S.pageTitle}>KYC Verifications</div>
+      <div style={S.pageSubtitle}>{items.length} pending review</div>
+      {msg && <div style={{ padding:'10px 14px', background: msg.includes('success') ? '#E1F5EE' : '#FEECEC', borderRadius:8, marginBottom:16, fontSize:13, color: msg.includes('success') ? '#0F6E56' : '#A32D2D' }}>{msg}</div>}
+      {loading ? <div style={{ color:'var(--muted)', padding:40 }}>Loading...</div> : (
+        <div style={S.card}>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                {['Agent', 'Phone', 'Status', 'Submissions', 'Submitted', 'Actions'].map(h => (
+                  <th key={h} style={S.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 && (
+                <tr><td style={S.td} colSpan={6}>No pending verifications 🎉</td></tr>
+              )}
+              {items.map(item => (
+                <tr key={item.id}>
+                  <td style={S.td}><strong>{item.agent_name}</strong></td>
+                  <td style={S.td}>{item.agent_phone}</td>
+                  <td style={S.td}><span style={S.badge(statusColor(item.status))}>{item.status}</span></td>
+                  <td style={S.td}>{item.submission_count}</td>
+                  <td style={S.td}>{new Date(item.submitted_at).toLocaleDateString()}</td>
+                  <td style={S.td}>
+                    <button style={S.btn('var(--primary)', true)} onClick={() => setSelected(item)}>
+                      Review
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {selected && (
+        <div style={S.modal} onClick={() => setSelected(null)}>
+          <div style={S.modalBox} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:18, fontWeight:700, marginBottom:4 }}>Review — {selected.agent_name}</div>
+            <div style={{ fontSize:13, color:'var(--muted)', marginBottom:20 }}>{selected.agent_phone} · {selected.submission_count} submission(s)</div>
+
+            <div style={{ display:'flex', gap:12, marginBottom:20 }}>
+              {selected.nin_doc_url && (
+                <a href={selected.nin_doc_url} target="_blank" rel="noreferrer" style={S.btn('var(--primary)', true)}>
+                  View NIN Doc
+                </a>
+              )}
+              {selected.selfie_url && (
+                <a href={selected.selfie_url} target="_blank" rel="noreferrer" style={S.btn('#10B981', true)}>
+                  View Selfie
+                </a>
+              )}
+              {selected.address_doc_url && (
+                <a href={selected.address_doc_url} target="_blank" rel="noreferrer" style={S.btn('#7C3AED', true)}>
+                  View Address Doc
+                </a>
+              )}
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', display:'block', marginBottom:6 }}>REJECTION REASON (required if rejecting)</label>
+              <textarea
+                style={{ ...S.input, height:80, resize:'vertical' }}
+                placeholder="e.g. ID document unclear, selfie doesn't match ID..."
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display:'flex', gap:12 }}>
+              <button style={S.btn('#10B981')} disabled={processing} onClick={() => review(selected.id, 'approve')}>
+                {processing ? '...' : '✓ Approve'}
+              </button>
+              <button style={S.btn('#EF4444')} disabled={processing} onClick={() => review(selected.id, 'reject')}>
+                {processing ? '...' : '✕ Reject'}
+              </button>
+              <button style={S.btn('#6B7280', true)} onClick={() => setSelected(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tasks Monitor ─────────────────────────────────────────────────────────────
+function TasksPage() {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.get('/tasks/?page_size=50');
+        setTasks(data.tasks || []);
+      } catch (e) { console.error(e); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const statusColor = (s) => ({
+    posted:'#3B82F6', agents_applied:'#8B5CF6', accepted:'#10B981',
+    in_progress:'#F59E0B', completed:'#10B981', disputed:'#EF4444',
+    cancelled:'#6B7280', expired:'#9CA3AF',
+  }[s] || '#6B7280');
+
+  return (
+    <div>
+      <div style={S.pageTitle}>Task Monitor</div>
+      <div style={S.pageSubtitle}>{tasks.length} tasks loaded</div>
+      <div style={S.card}>
+        {loading ? <div style={{ color:'var(--muted)' }}>Loading...</div> : (
+          <table style={S.table}>
+            <thead>
+              <tr>
+                {['Title', 'Category', 'Status', 'Budget', 'Emergency', 'Posted'].map(h => (
+                  <th key={h} style={S.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map(t => (
+                <tr key={t.id}>
+                  <td style={S.td}><strong>{t.title.slice(0,40)}{t.title.length > 40 ? '…' : ''}</strong></td>
+                  <td style={S.td}>{t.category}</td>
+                  <td style={S.td}><span style={S.badge(statusColor(t.status))}>{t.status}</span></td>
+                  <td style={S.td}>₦{Number(t.budget).toLocaleString()}</td>
+                  <td style={S.td}>{t.is_emergency ? '🚨' : '—'}</td>
+                  <td style={S.td}>{new Date(t.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+              {tasks.length === 0 && <tr><td colSpan={6} style={S.td}>No tasks found</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Disputes ──────────────────────────────────────────────────────────────────
+function DisputesPage() {
+  return (
+    <div>
+      <div style={S.pageTitle}>Dispute Management</div>
+      <div style={S.pageSubtitle}>Review and resolve active disputes</div>
+      <div style={S.card}>
+        <div style={{ color:'var(--muted)', fontSize:14, padding:20, textAlign:'center' }}>
+          <div style={{ fontSize:32, marginBottom:12 }}>⚖️</div>
+          <div>Dispute management is active.</div>
+          <div style={{ marginTop:8 }}>Disputes appear here when raised on tasks via POST /tasks/&#123;id&#125;/dispute.</div>
+          <div style={{ marginTop:8 }}>Admin can resolve via POST /payments/release/&#123;task_id&#125; or /payments/refund/&#123;task_id&#125;.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── App Shell ─────────────────────────────────────────────────────────────────
+const PAGES = {
+  dashboard: { label: '📊 Dashboard', component: DashboardPage },
+  verifications: { label: '🛡️ Verifications', component: VerificationsPage },
+  tasks: { label: '📋 Tasks', component: TasksPage },
+  disputes: { label: '⚖️ Disputes', component: DisputesPage },
+};
+
+function App() {
+  const [authed, setAuthed] = useState(!!localStorage.getItem('admin_token'));
+  const [page, setPage] = useState('dashboard');
+
+  useEffect(() => {
+    const handler = (e) => setPage(e.detail);
+    window.addEventListener('navigate', handler);
+    return () => window.removeEventListener('navigate', handler);
+  }, []);
+
+  if (!authed) return <LoginPage onLogin={() => setAuthed(true)} />;
+
+  const PageComponent = PAGES[page]?.component || DashboardPage;
+
+  return (
+    <div style={S.layout}>
+      <div style={S.sidebar}>
+        <div style={S.sidebarTitle}>Errand Marketplace<br /><span style={{ fontSize:11, opacity:0.6, fontWeight:400 }}>Admin Panel</span></div>
+        {Object.entries(PAGES).map(([key, { label }]) => (
+          <div key={key} style={S.navItem(page === key)} onClick={() => setPage(key)}>{label}</div>
+        ))}
+        <div style={{ marginTop:'auto', padding:'24px 20px 0', borderTop:'1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ ...S.navItem(false), color:'rgba(255,255,255,0.5)', fontSize:12 }}
+            onClick={() => { localStorage.removeItem('admin_token'); api.token = null; setAuthed(false); }}>
+            Sign out
+          </div>
+        </div>
+      </div>
+      <div style={S.main}><PageComponent /></div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
