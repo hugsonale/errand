@@ -2,8 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
-const String _baseUrl = 'http://10.0.2.2:8000/api/v1'; // Android emulator → localhost
-// For physical device, use your machine's local IP: 'http://192.168.x.x:8000/api/v1'
+const String _baseUrl = 'http://10.0.2.2:8000/api/v1';
 
 const _storage = FlutterSecureStorage(
   aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -187,6 +186,52 @@ class ApiService {
     return resp.data;
   }
 
+  // ─── Payments ──────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> initiatePayment(String taskId) async {
+    final resp = await _dio.post('/payments/initiate/$taskId');
+    return resp.data;
+  }
+
+  Future<Map<String, dynamic>> getPaymentHistory({int page = 1}) async {
+    final resp = await _dio.get('/payments/history', queryParameters: {'page': page});
+    return resp.data;
+  }
+
+  // ─── Reviews ───────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> submitReview(Map<String, dynamic> body) async {
+    final resp = await _dio.post('/reviews/', data: body);
+    return resp.data;
+  }
+
+  Future<Map<String, dynamic>> getAgentReviews(String agentUserId, {int page = 1}) async {
+    final resp = await _dio.get('/reviews/agent/$agentUserId', queryParameters: {'page': page});
+    return resp.data;
+  }
+
+  Future<Map<String, dynamic>> getTrustScore(String agentUserId) async {
+    final resp = await _dio.get('/reviews/trust-score/$agentUserId');
+    return resp.data;
+  }
+
+  // ─── Notifications ─────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getNotifications({bool unreadOnly = false}) async {
+    final resp = await _dio.get('/notifications/', queryParameters: {
+      if (unreadOnly) 'unread_only': true,
+    });
+    return resp.data;
+  }
+
+  Future<void> markNotificationRead(String notificationId) async {
+    await _dio.post('/notifications/$notificationId/read');
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    await _dio.post('/notifications/read-all');
+  }
+
   // ─── Token helpers ─────────────────────────────────────────────────────────
 
   Future<void> _saveTokens(Map<String, dynamic> data) async {
@@ -230,14 +275,10 @@ class _AuthInterceptor extends Interceptor {
           handler.next(err);
           return;
         }
-
         final resp = await Dio(BaseOptions(baseUrl: _baseUrl))
             .post('/auth/refresh', data: {'refresh_token': refreshToken});
-
         await _storage.write(key: 'access_token', value: resp.data['access_token']);
         await _storage.write(key: 'refresh_token', value: resp.data['refresh_token']);
-
-        // Retry the original request with new token
         err.requestOptions.headers['Authorization'] = 'Bearer ${resp.data['access_token']}';
         final retried = await dio.fetch(err.requestOptions);
         handler.resolve(retried);
@@ -253,51 +294,6 @@ class _AuthInterceptor extends Interceptor {
   }
 }
 
-// Global singleton
+// ─── Global singleton ─────────────────────────────────────────────────────────
+
 final apiService = ApiService();
-
-  // ─── Phase 3: Payments ─────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> initiatePayment(String taskId) async {
-    final resp = await _dio.post('/payments/initiate/$taskId');
-    return resp.data;
-  }
-
-  Future<Map<String, dynamic>> getPaymentHistory({int page = 1}) async {
-    final resp = await _dio.get('/payments/history', queryParameters: {'page': page});
-    return resp.data;
-  }
-
-  // ─── Phase 3: Reviews ──────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> submitReview(Map<String, dynamic> body) async {
-    final resp = await _dio.post('/reviews/', data: body);
-    return resp.data;
-  }
-
-  Future<Map<String, dynamic>> getAgentReviews(String agentUserId, {int page = 1}) async {
-    final resp = await _dio.get('/reviews/agent/$agentUserId', queryParameters: {'page': page});
-    return resp.data;
-  }
-
-  Future<Map<String, dynamic>> getTrustScore(String agentUserId) async {
-    final resp = await _dio.get('/reviews/trust-score/$agentUserId');
-    return resp.data;
-  }
-
-  // ─── Phase 3: Notifications ────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> getNotifications({bool unreadOnly = false}) async {
-    final resp = await _dio.get('/notifications/', queryParameters: {
-      if (unreadOnly) 'unread_only': true,
-    });
-    return resp.data;
-  }
-
-  Future<void> markNotificationRead(String notificationId) async {
-    await _dio.post('/notifications/$notificationId/read');
-  }
-
-  Future<void> markAllNotificationsRead() async {
-    await _dio.post('/notifications/read-all');
-  }
