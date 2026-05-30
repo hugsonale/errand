@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../constants/app_constants.dart';
 import '../../providers/providers.dart';
+import '../../services/api_service.dart';
 
 // ─── Shared form field widget ─────────────────────────────────────────────────
 
@@ -80,7 +81,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    // Store phone for OTP screen, navigate to account type first
     context.go('/account-type', extra: _phoneCtrl.text.trim());
   }
 
@@ -98,31 +98,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Back
                 IconButton(
                   onPressed: () => context.go('/onboarding'),
                   icon: const Icon(Icons.arrow_back_ios_new),
                   padding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 24),
-
                 Text('Create account', style: AppTextStyles.displayMedium),
                 const SizedBox(height: 6),
                 Text('Join thousands of verified users',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                        color: AppColors.textSecondary)),
+                    style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary)),
                 const SizedBox(height: 36),
-
                 _AppField(
                   label: 'Full name',
                   hint: 'Amaka Johnson',
                   controller: _nameCtrl,
-                  validator: (v) => (v?.trim().length ?? 0) < 2
-                      ? 'Enter your full name'
-                      : null,
+                  validator: (v) => (v?.trim().length ?? 0) < 2 ? 'Enter your full name' : null,
                 ),
                 const SizedBox(height: 20),
-
                 _AppField(
                   label: 'Phone number',
                   hint: '08012345678',
@@ -135,7 +128,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-
                 _AppField(
                   label: 'Password',
                   hint: 'Min. 8 chars, 1 uppercase, 1 number',
@@ -156,8 +148,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Error
                 if (auth.error != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -169,18 +159,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline,
-                            color: AppColors.error, size: 18),
+                        const Icon(Icons.error_outline, color: AppColors.error, size: 18),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(auth.error!,
-                              style: AppTextStyles.bodySmall
-                                  .copyWith(color: AppColors.error)),
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
                         ),
                       ],
                     ),
                   ),
-
                 const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: auth.isLoading ? null : _submit,
@@ -188,13 +175,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Text('Continue'),
                 ),
                 const SizedBox(height: 24),
-
                 Center(
                   child: TextButton(
                     onPressed: () => context.go('/login'),
@@ -208,8 +192,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           TextSpan(
                               text: 'Login',
                               style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600)),
+                                  color: AppColors.primary, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -237,33 +220,16 @@ class AccountTypeScreen extends ConsumerStatefulWidget {
 class _AccountTypeScreenState extends ConsumerState<AccountTypeScreen> {
   String _selected = 'client';
 
-  final _types = [
-    _TypeOption(
-      role: 'client',
-      emoji: '🙋',
-      title: 'Client',
-      subtitle: 'Post tasks and hire verified agents',
-      color: AppColors.primary,
-    ),
-    _TypeOption(
-      role: 'agent',
-      emoji: '⚡',
-      title: 'Errand Agent',
-      subtitle: 'Earn money completing tasks near you',
-      color: AppColors.secondary,
-    ),
-    _TypeOption(
-      role: 'business',
-      emoji: '🏢',
-      title: 'Business',
-      subtitle: 'Manage office errands at scale',
-      color: Color(0xFF7C3AED),
-    ),
+  final _types = const [
+    _TypeOption(role: 'client', emoji: '🙋', title: 'Client',
+        subtitle: 'Post tasks and hire verified agents', color: AppColors.primary),
+    _TypeOption(role: 'agent', emoji: '⚡', title: 'Errand Agent',
+        subtitle: 'Earn money completing tasks near you', color: AppColors.secondary),
+    _TypeOption(role: 'business', emoji: '🏢', title: 'Business',
+        subtitle: 'Manage office errands at scale', color: Color(0xFF7C3AED)),
   ];
 
   Future<void> _confirm() async {
-    // We stored name+password in register screen state — for simplicity,
-    // navigate to OTP and pass phone + role
     context.go('/otp', extra: widget.phone);
   }
 
@@ -286,10 +252,8 @@ class _AccountTypeScreenState extends ConsumerState<AccountTypeScreen> {
               Text('How will you\nuse the app?', style: AppTextStyles.displayMedium),
               const SizedBox(height: 8),
               Text('You can change this later',
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(color: AppColors.textSecondary)),
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
               const SizedBox(height: 36),
-
               ..._types.map((t) => Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: _TypeCard(
@@ -298,7 +262,6 @@ class _AccountTypeScreenState extends ConsumerState<AccountTypeScreen> {
                       onTap: () => setState(() => _selected = t.role),
                     ),
                   )),
-
               const Spacer(),
               ElevatedButton(
                 onPressed: _confirm,
@@ -338,9 +301,7 @@ class _TypeCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: selected
-              ? option.color.withOpacity(0.06)
-              : AppColors.surfaceVariant,
+          color: selected ? option.color.withOpacity(0.06) : AppColors.surfaceVariant,
           borderRadius: AppRadius.cardRadius,
           border: Border.all(
             color: selected ? option.color : AppColors.border,
@@ -358,13 +319,11 @@ class _TypeCard extends StatelessWidget {
                   Text(option.title, style: AppTextStyles.h3),
                   const SizedBox(height: 2),
                   Text(option.subtitle,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textSecondary)),
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
                 ],
               ),
             ),
-            if (selected)
-              Icon(Icons.check_circle, color: option.color, size: 22),
+            if (selected) Icon(Icons.check_circle, color: option.color, size: 22),
           ],
         ),
       ),
@@ -413,9 +372,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   Future<void> _verify() async {
     final code = _otpCtrl.text.trim();
     if (code.length != 6) return;
-    final ok = await ref
-        .read(authProvider.notifier)
-        .verifyPhone(widget.phone, code);
+    final ok = await ref.read(authProvider.notifier).verifyPhone(widget.phone, code);
     if (!mounted) return;
     if (ok) {
       final user = ref.read(authProvider).user;
@@ -448,21 +405,17 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               const SizedBox(height: 8),
               RichText(
                 text: TextSpan(
-                  style: AppTextStyles.bodyLarge
-                      .copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
                   children: [
                     const TextSpan(text: 'Enter the 6-digit code sent to '),
                     TextSpan(
                         text: maskedPhone,
                         style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600)),
+                            color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
               const SizedBox(height: 40),
-
-              // OTP input
               TextFormField(
                 controller: _otpCtrl,
                 keyboardType: TextInputType.number,
@@ -485,14 +438,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 },
               ),
               const SizedBox(height: 24),
-
-              // Error
               if (auth.error != null)
-                Text(
-                  auth.error!,
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-                ),
-
+                Text(auth.error!,
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
               const SizedBox(height: 8),
               ElevatedButton(
                 onPressed: auth.isLoading ? null : _verify,
@@ -500,13 +448,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('Verify'),
               ),
               const SizedBox(height: 20),
-
-              // Resend
               Center(
                 child: _canResend
                     ? TextButton(
@@ -515,13 +460,11 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                           _startTimer();
                         },
                         child: Text('Resend code',
-                            style: AppTextStyles.labelLarge
-                                .copyWith(color: AppColors.primary)),
+                            style: AppTextStyles.labelLarge.copyWith(color: AppColors.primary)),
                       )
                     : Text(
                         'Resend code in $_secondsLeft seconds',
-                        style: AppTextStyles.bodySmall
-                            .copyWith(color: AppColors.textSecondary),
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
                       ),
               ),
             ],
@@ -589,48 +532,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Text('Welcome back', style: AppTextStyles.displayMedium),
                 const SizedBox(height: 6),
                 Text('Login to your account',
-                    style: AppTextStyles.bodyLarge
-                        .copyWith(color: AppColors.textSecondary)),
+                    style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary)),
                 const SizedBox(height: 36),
-
                 _AppField(
                   label: 'Phone or email',
                   hint: '08012345678 or email@example.com',
                   controller: _identifierCtrl,
                   keyboard: TextInputType.emailAddress,
-                  validator: (v) => (v?.trim().isEmpty ?? true)
-                      ? 'Enter phone or email'
-                      : null,
+                  validator: (v) => (v?.trim().isEmpty ?? true) ? 'Enter phone or email' : null,
                 ),
                 const SizedBox(height: 20),
-
                 _AppField(
                   label: 'Password',
                   controller: _passwordCtrl,
                   obscure: !_showPassword,
-                  validator: (v) =>
-                      (v?.isEmpty ?? true) ? 'Enter password' : null,
+                  validator: (v) => (v?.isEmpty ?? true) ? 'Enter password' : null,
                   suffix: IconButton(
                     icon: Icon(
                       _showPassword ? Icons.visibility_off : Icons.visibility,
                       color: AppColors.textSecondary,
                     ),
-                    onPressed: () =>
-                        setState(() => _showPassword = !_showPassword),
+                    onPressed: () => setState(() => _showPassword = !_showPassword),
                   ),
                 ),
                 const SizedBox(height: 8),
-
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {},
                     child: Text('Forgot password?',
-                        style: AppTextStyles.labelLarge
-                            .copyWith(color: AppColors.primary)),
+                        style: AppTextStyles.labelLarge.copyWith(color: AppColors.primary)),
                   ),
                 ),
-
                 if (auth.error != null) ...[
                   const SizedBox(height: 8),
                   Container(
@@ -641,19 +574,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline,
-                            color: AppColors.error, size: 18),
+                        const Icon(Icons.error_outline, color: AppColors.error, size: 18),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(auth.error!,
-                              style: AppTextStyles.bodySmall
-                                  .copyWith(color: AppColors.error)),
+                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
                         ),
                       ],
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: auth.isLoading ? null : _login,
@@ -661,12 +591,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Text('Login'),
                 ),
                 const SizedBox(height: 24),
-
                 Center(
                   child: TextButton(
                     onPressed: () => context.go('/register'),
@@ -675,14 +603,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         style: AppTextStyles.bodyMedium,
                         children: [
                           TextSpan(
-                              text: 'Don\'t have an account? ',
-                              style:
-                                  TextStyle(color: AppColors.textSecondary)),
+                              text: "Don't have an account? ",
+                              style: TextStyle(color: AppColors.textSecondary)),
                           TextSpan(
                               text: 'Sign up',
                               style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600)),
+                                  color: AppColors.primary, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
